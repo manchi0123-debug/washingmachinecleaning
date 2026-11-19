@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>直立式洗衣機槽清潔 — 生活功能訓練模擬器</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Google Fonts: Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+      background-color: #f0f9ff;
+    }
+
+    /* 學習模式目標按鈕柔和綠色脈衝發光提示 */
+    @keyframes targetPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.75);
+        border-color: #16a34a;
+      }
+      50% {
+        box-shadow: 0 0 0 12px rgba(34, 197, 94, 0);
+        border-color: #22c55e;
+      }
+    }
+
+    .learning-target-pulse {
+      animation: targetPulse 1.8s infinite;
+      border-width: 4px !important;
+      border-color: #16a34a !important;
+    }
+
+    /* 溫和引導抖動（練習模式選錯時，柔和提示不刺眼） */
+    @keyframes gentleNudge {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+
+    .gentle-nudge {
+      animation: gentleNudge 0.35s ease-in-out;
+    }
+
+    /* 大觸控按鈕立體感與點擊反饋 */
+    .big-touch-btn {
+      min-height: 68px;
+      transition: transform 0.12s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 5px 0 rgba(15, 23, 42, 0.18);
+    }
+
+    .big-touch-btn:active:not(:disabled) {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 rgba(15, 23, 42, 0.18);
+    }
+
+    /* 自訂捲軸 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 999px;
+    }
+
+    /* 閃亮星星浮動動畫 */
+    @keyframes floatStar {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-6px) scale(1.08); }
+    }
+    .star-float {
+      animation: floatStar 1.6s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col lg:flex-row text-slate-800">
+
+  <!-- =========================================================
+       左側 80%：3D 互動場景視窗 (台灣居家陽台/洗衣間低多邊形場景)
+  ========================================================== -->
+  <section id="scene-wrapper" class="relative w-full lg:w-[80%] h-[58vh] lg:h-full bg-gradient-to-b from-sky-200 to-amber-50 overflow-hidden border-b-4 lg:border-b-0 lg:border-r-4 border-slate-300">
+    <!-- Three.js 渲染容器 -->
+    <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+    <!-- 左上角：標題與狀態徽章 -->
+    <div class="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-none">
+      <div class="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-md border-2 border-sky-200 flex items-center gap-2">
+        <span class="text-2xl">🧺</span>
+        <div>
+          <h1 class="text-base sm:text-lg font-black text-sky-900 leading-tight">直立式洗衣機槽清潔</h1>
+  <!-- 左側標題與狀態徽章 (移除破折號改用冒號) -->
+    <div class="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-none">
+      <div class="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-md border-2 border-sky-200 flex items-center gap-2">
+        <span class="text-2xl">🧺</span>
+        <div>
+          <h1 class="text-base sm:text-lg font-black text-sky-900 leading-tight">直立式洗衣機槽清潔</h1>
+          <p class="text-xs font-bold text-slate-500">生活功能訓練模擬器</p>
+        </div>
+      </div>
+
+      <!-- 洗衣機即時狀態膠囊 -->
+      <div id="machine-status-badge" class="bg-slate-800/85 text-white backdrop-blur-md px-4 py-1.5 rounded-full text-sm font-bold shadow flex items-center gap-2 self-start">
+        <span id="status-dot" class="w-3 h-3 rounded-full bg-slate-400 inline-block"></span>
+        <span id="status-text">電源：關閉中</span>
+      </div>
+    </div>
+
+    <!-- 右上角：懸浮功能按鈕列 (語音開關 / 視角切換 / 重新開始) -->
+    <div class="absolute top-3 right-3 z-20 flex flex-wrap justify-end gap-2">
+      <!-- 語音靜音/開啟按鈕 -->
+      <button id="btn-toggle-voice" type="button"
+        class="bg-white/95 hover:bg-sky-50 active:scale-95 text-slate-800 font-bold px-3.5 py-2.5 rounded-2xl shadow-md border-2 border-slate-200 flex items-center gap-1.5 text-sm sm:text-base transition"
+        title="切換語音報讀">
+        <span id="voice-icon" class="text-xl">🔊</span>
+        <span id="voice-label" class="hidden sm:inline">語音開啟</span>
+      </button>
+
+      <!-- 視角切換：特寫面板 / 看洗衣槽 / 全景 -->
+      <button id="btn-toggle-camera" type="button"
+        class="bg-white/95 hover:bg-sky-50 active:scale-95 text-slate-800 font-bold px-3.5 py-2.5 rounded-2xl shadow-md border-2 border-slate-200 flex items-center gap-1.5 text-sm sm:text-base transition"
+        title="切換觀察視角">
+        <span class="text-xl">🎥</span>
+        <span id="camera-label">視角：看面板</span>
+      </button>
+
+      <!-- 重新開始按鈕 -->
+      <button id="btn-restart-top" type="button"
+        class="bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-900 font-bold px-3.5 py-2.5 rounded-2xl shadow-md border-2 border-amber-300 flex items-center gap-1.5 text-sm sm:text-base transition"
+        title="重新開始訓練">
+        <span class="text-xl">🔄</span>
+        <span class="hidden sm:inline">重新開始</span>
+      </button>
+    </div>
+
+    <!-- 底部操作小提示 (可直接點擊 3D 面板或洗衣槽) -->
+    <div id="scene-hint-pill" class="absolute bottom-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-slate-700 shadow-sm pointer-events-none border border-slate-200">
+      👆 可直接點選洗衣機面板上的按鈕，或拖曳旋轉畫面
+    </div>
+
+    <!-- 步驟 6 專屬：跳出大型「時鐘轉動 1 小時」浸泡視覺化卡片覆蓋層 (置於上方角落，讓下方洗衣槽泡沫清晰可見) -->
+    <div id="soak-clock-overlay" class="hidden absolute inset-x-3 bottom-3 sm:inset-auto sm:bottom-4 sm:right-4 z-30 pointer-events-none flex justify-center">
+      <div class="bg-white/95 backdrop-blur-md rounded-3xl p-4 sm:p-5 max-w-xs w-full shadow-2xl border-4 border-sky-400 flex flex-col items-center text-center pointer-events-auto">
+        <div class="bg-sky-100 text-sky-900 font-black px-3.5 py-1 rounded-full text-sm sm:text-base mb-2">
+          ⏳ 洗衣槽清潔劑浸泡中...
+        </div>
+
+        <!-- SVG 動態時鐘 -->
+        <div class="relative w-32 h-32 sm:w-36 sm:h-36 my-1">
+          <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+            <circle cx="100" cy="100" r="92" fill="#f8fafc" stroke="#0284c7" stroke-width="10"/>
+            <circle cx="100" cy="22" r="5" fill="#0369a1"/>
+            <circle cx="178" cy="100" r="5" fill="#0369a1"/>
+            <circle cx="100" cy="178" r="5" fill="#0369a1"/>
+            <circle cx="22" cy="100" r="5" fill="#0369a1"/>
+            <circle id="clock-progress-ring" cx="100" cy="100" r="72" fill="none" stroke="#38bdf8" stroke-width="14"
+              stroke-dasharray="452.39" stroke-dashoffset="452.39" stroke-linecap="round"
+              transform="rotate(-90 100 100)"/>
+            <line id="clock-hour-hand" x1="100" y1="100" x2="100" y2="55" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+            <line id="clock-minute-hand" x1="100" y1="100" x2="100" y2="30" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="8" fill="#0284c7"/>
+          </svg>
+        </div>
+
+        <!-- 時間文字變化 -->
+        <div id="clock-time-display" class="text-xl sm:text-2xl font-black text-sky-700 mt-1">
+          0 分鐘
+        </div>
+        <p id="clock-sub-display" class="text-xs sm:text-sm font-bold text-slate-600 mt-0.5">
+          正在溶解洗衣槽內壁污垢...
+        </p>
+      </div>
+    </div>
+
+    <!-- 自訂重新開始確認視窗 (取代 confirm) -->
+    <div id="restart-confirm-modal" class="hidden absolute inset-0 z-40 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-amber-300 text-center">
+        <div class="text-4xl mb-2">🔄</div>
+        <h3 class="text-xl font-black text-slate-800 mb-2">要重新開始練習嗎？</h3>
+        <p class="text-base font-bold text-slate-600 mb-6">將會回到第 1 步「開啟洗衣機電源」喔！</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btn-cancel-restart" type="button"
+            class="big-touch-btn bg-slate-200 hover:bg-slate-300 text-slate-800 font-black text-lg rounded-2xl py-3">
+            繼續練習
+          </button>
+          <button id="btn-confirm-restart" type="button"
+            class="big-touch-btn bg-amber-500 hover:bg-amber-600 text-white font-black text-lg rounded-2xl py-3">
+            重新開始
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       右側 20%：工作分析法 (Task Analysis) 操作面板
+  ========================================================== -->
+  <aside class="w-full lg:w-[20%] lg:min-w-[270px] h-[42vh] lg:h-full bg-white flex flex-col justify-between overflow-y-auto p-3 sm:p-4">
+    
+    <!-- 頂部控制列：難度鷹架切換 + 老師設定折疊按鈕 -->
+    <div>
+      <div class="flex flex-wrap items-center justify-between gap-1.5 pb-2.5 border-b-2 border-slate-100">
+        <!-- 難度鷹架切換 (學習模式 / 練習模式) -->
+        <div class="inline-flex bg-slate-100 p-1 rounded-2xl border-2 border-slate-200">
+          <button id="mode-learning" type="button"
+            class="px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 text-white shadow transition">
+            🌱 學習
+          </button>
+          <button id="mode-practice" type="button"
+            class="px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black text-slate-600 hover:text-slate-900 transition">
+            🎯 練習
+          </button>
+        </div>
+
+        <!-- 老師設定折疊鈕 -->
+        <button id="btn-toggle-settings" type="button"
+          class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 border border-slate-200 transition">
+          <span>⚙️ 設定</span>
+          <span id="settings-arrow">▼</span>
+        </button>
+      </div>
+
+      <!-- 老師設定折疊面板 -->
+      <div id="teacher-settings-panel" class="hidden mt-3 bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-sm space-y-2.5">
+        <div class="flex items-center justify-between">
+          <label for="chk-auto-speech" class="font-bold text-slate-700">自動語音報讀步驟</label>
+          <input id="chk-auto-speech" type="checkbox" checked class="w-5 h-5 accent-sky-600 rounded cursor-pointer">
+        </div>
+        <div class="flex items-center justify-between">
+          <label for="chk-step-hint" class="font-bold text-slate-700">顯示詳細文字提示框</label>
+          <input id="chk-step-hint" type="checkbox" checked class="w-5 h-5 accent-sky-600 rounded cursor-pointer">
+        </div>
+        <div class="flex items-center justify-between">
+          <label for="select-debounce" class="font-bold text-slate-700">防誤觸連點鎖定時間</label>
+          <select id="select-debounce" class="bg-white border border-slate-300 rounded-lg px-2 py-1 font-bold text-slate-800">
+            <option value="400" selected>400 毫秒 (標準)</option>
+            <option value="700">700 毫秒 (加強防抖)</option>
+            <option value="150">150 毫秒 (快速)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 8 個步驟的橫向進度膠囊列 -->
+      <div class="mt-3">
+        <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1.5">
+          <span>任務進度 (工作分析 8 步驟)</span>
+          <span id="progress-fraction" class="text-sky-700 font-black">第 1 / 8 步</span>
+        </div>
+        <div id="step-capsules" class="grid grid-cols-8 gap-1.5">
+          <!-- 由 JS 動態生成 1~8 進度膠囊 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 中央主要任務卡片區 -->
+    <main class="my-2.5 flex-1 flex flex-col justify-center">
+      <div class="bg-sky-50/90 border-2 border-sky-200 rounded-3xl p-3.5 sm:p-4 shadow-sm">
+        <!-- 步驟編號與重聽語音大按鈕 -->
+        <div class="flex items-center justify-between gap-1.5 mb-2.5">
+          <span id="step-badge" class="bg-sky-600 text-white font-black text-sm sm:text-base px-3 py-1 rounded-2xl shadow-sm">
+            步驟 1
+          </span>
+
+          <button id="btn-replay-speech" type="button"
+            class="bg-amber-400 hover:bg-amber-500 active:scale-95 text-slate-900 font-black px-3 py-1.5 rounded-2xl shadow border-2 border-amber-500 flex items-center gap-1 text-sm sm:text-base transition">
+            <span>🔊</span>
+            <span>聽語音</span>
+          </button>
+        </div>
+
+        <!-- 步驟大標題 -->
+        <h2 id="step-title" class="text-xl sm:text-2xl font-black text-slate-900 mb-2 leading-snug">
+          開啟洗衣機電源
+        </h2>
+
+        <!-- 步驟說明提示框 -->
+        <div id="step-instruction-box" class="bg-white rounded-2xl p-3 border-2 border-sky-100 text-base sm:text-lg font-bold text-slate-700 leading-relaxed mb-3">
+          請按下洗衣機的「電源：開」按鈕。
+        </div>
+
+        <!-- 溫和回饋訊息區 (選錯或動畫進行中提示，絕不顯示負面紅字) -->
+        <div id="feedback-banner" class="hidden mb-4 rounded-2xl p-3 bg-amber-100 border-2 border-amber-300 text-amber-900 font-bold text-base sm:text-lg flex items-center gap-2">
+          <span class="text-2xl">💡</span>
+          <span id="feedback-text">提示訊息</span>
+        </div>
+
+        <!-- 動態操作按鈕區 (大尺寸高對比觸控按鈕) -->
+        <div id="action-buttons-area" class="space-y-3">
+          <!-- 由 JS 依據目前步驟動態渲染 -->
+        </div>
+      </div>
+    </main>
+
+    <!-- 底部狀態提示列 -->
+    <footer class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-500">
+      <span id="mode-description">🌱 學習模式：綠色發光框會提示正確按鈕</span>
+      <span class="text-sky-700">台灣特教生活訓練</span>
+    </footer>
+  </aside>
+
+  <!-- =========================================================
+       JavaScript 核心邏輯：音效 + 語音 + 3D 場景 + 8 步驟工作分析
+  ========================================================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      /* -------------------------------------------------------
+         1. 全域狀態與特教防呆設定
+      -------------------------------------------------------- */
+      const STATE = {
+        currentStep: 1,         // 1 ~ 8
+        mode: "learning",       // "learning" | "practice"
+        voiceEnabled: true,
+        autoSpeech: true,
+        showHint: true,
+        debounceMs: 400,
+        lastClickTime: 0,
+        isAnimating: false,     // 動畫鎖定（例如浸泡 1 小時轉動中）
+        cameraView: "panel",    // "panel" | "drum" | "overview"
+
+        // 洗衣機 3D 視覺與 Panasonic NA-158VT 面板狀態
+        powerOn: false,
+        waterLevelIndex: 0,     // 0: 未設定, 1: 38L(低), 2: 58L(中), 3: 98L(高)
+        waterLevelHigh: false,
+        digitalText: "",        // 中央紅字 7 段顯示器 ("", "98", "60", "00")
+        lidAngle: 0,            // 0 = 蓋上, Math.PI * 0.46 = 掀開
+        targetLidAngle: 0,
+        waterFillRatio: 0,      // 0 ~ 1
+        targetWaterFill: 0,
+        waterDirty: false,
+        isSpinning: false,
+        spinSpeed: 0,
+        foamAmount: 0,          // 0 ~ 1
+        targetFoamAmount: 0,
+        isSparkling: false,
+        hoveredTarget: null
+      };
+
+      /* -------------------------------------------------------
+         2. 8 個工作分析步驟資料定義 (台灣道地繁體中文)
+      -------------------------------------------------------- */
+      const STEPS_DATA = [
+        {
+          step: 1,
+          title: "開啟洗衣機電源",
+          instruction: "請直接點選洗衣機面板右邊的「電源：開」按鈕（或點選下方綠色按鈕）。",
+          speech: "步驟一，開啟洗衣機電源。請點選洗衣機面板右邊的電源開按鈕。",
+          buttons: [
+            { id: "btn-power-on", label: "⏻ 電源：開", style: "emerald", isTarget: true }
+          ]
+        },
+        {
+          step: 2,
+          title: "選擇高水位 (98L)",
+          instruction: "請直接點選面板左邊的「水量」按鈕，將水位調到最高「98L 高水位」。",
+          speech: "步驟二，選擇高水位。請點選面板左邊的水量按鈕，將水位調到九十八公升高水位。",
+          buttons: [
+            { id: "btn-water-high", label: "🌊 水量：98L (高水位)", style: "sky", isTarget: true },
+            { id: "btn-water-mid",  label: "💧 水量：58L (中水位)", style: "slate", isTarget: false, gentleHint: "58L 中水位的水不夠多喔，清潔洗衣槽需要滿滿的水，請選擇「98L 高水位」！" },
+            { id: "btn-water-low",  label: "💦 水量：38L (低水位)", style: "slate", isTarget: false, gentleHint: "38L 低水位太少了，洗不到上面的污垢，請選擇「98L 高水位」喔！" }
+          ]
+        },
+        {
+          step: 3,
+          title: "按下「啟動 / 暫停」",
+          instruction: "水位 98L 選好了！請直接點選面板上的黃色「啟動 / 暫停」按鈕開始注水運轉。",
+          speech: "步驟三，按下啟動。請點選面板上的黃色啟動暫停按鈕，讓洗衣機開始注水運轉。",
+          buttons: [
+            { id: "btn-start-1", label: "▶️ 啟動 / 暫停", style: "amber", isTarget: true }
+          ]
+        },
+        {
+          step: 4,
+          title: "運轉時按下「啟動 / 暫停」",
+          instruction: "洗衣機正在注水攪動！請再按一次面板上的「啟動 / 暫停」讓洗衣機暫停。",
+          speech: "步驟四，按下暫停。洗衣機已經開始運轉了，請再按一次面板上的啟動暫停按鈕，讓洗衣機暫停。",
+          buttons: [
+            { id: "btn-pause", label: "⏸️ 啟動 / 暫停（暫停）", style: "amber", isTarget: true }
+          ]
+        },
+        {
+          step: 5,
+          title: "投入洗衣槽清潔劑",
+          instruction: "上蓋打開露出洗衣槽了！請點選「投入洗衣槽清潔劑」（或直接點選洗衣槽與清潔劑）。",
+          speech: "步驟五，投入洗衣槽清潔劑。請將洗衣槽清潔劑倒入洗衣槽裡面。",
+          buttons: [
+            { id: "btn-pour-cleaner", label: "📦 投入洗衣槽清潔劑", style: "indigo", isTarget: true }
+          ]
+        },
+        {
+          step: 6,
+          title: "浸泡 1 小時",
+          instruction: "看著洗衣槽裡的泡沫，點選「開始浸泡 1 小時」讓清潔劑溶解污垢。",
+          speech: "步驟六，浸泡一小時。請點選開始浸泡一小時，觀察時鐘轉動一小時溶解污垢。",
+          buttons: [
+            { id: "btn-soak-1hr", label: "⏰ 開始浸泡 1 小時", style: "sky", isTarget: true }
+          ]
+        },
+        {
+          step: 7,
+          title: "再次按下「啟動 / 暫停」",
+          instruction: "浸泡 1 小時完成了！請點選面板上的「啟動 / 暫停」開始洗淨並排水。",
+          speech: "步驟七，再次按下啟動。浸泡一小時完成了！請點選面板上的啟動暫停按鈕，把污垢洗乾淨並排水。",
+          buttons: [
+            { id: "btn-start-2", label: "▶️ 啟動 / 暫停（洗淨排水）", style: "amber", isTarget: true }
+          ]
+        },
+        {
+          step: 8,
+          title: "完成！洗衣機亮晶晶",
+          instruction: "太棒了！你看看洗衣槽裡面變得亮晶晶、好乾淨！",
+          speech: "步驟八，恭喜完成！太棒了！洗衣機變得亮晶晶，好乾淨！",
+          buttons: []
+        }
+      ];
+
+      /* -------------------------------------------------------
+         3. Web Audio API 溫和音效合成器 (免外部音檔)
+      -------------------------------------------------------- */
+      let audioCtx = null;
+
+      function ensureAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+      }
+
+      function playClickSound(freq = 560, duration = 0.14) {
+        try {
+          ensureAudioContext();
+          if (!audioCtx) return;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+        } catch (err) {
+          // 忽略瀏覽器音訊限制錯誤
+        }
+      }
+
+      function playPowerOnSound() {
+        playClickSound(440, 0.12);
+        setTimeout(() => playClickSound(660, 0.18), 110);
+      }
+
+      function playGentleNudgeSound() {
+        playClickSound(330, 0.16);
+      }
+
+      function playTickSound(isFinal = false) {
+        playClickSound(isFinal ? 880 : 720, isFinal ? 0.25 : 0.08);
+      }
+
+      function playCelebrationSound() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => playClickSound(n, 0.26), idx * 120);
+        });
+      }
+
+      /* -------------------------------------------------------
+         4. 台灣繁體中文語音報讀 (Web Speech API zh-TW)
+      -------------------------------------------------------- */
+      function speakText(text, force = false) {
+        if (!("speechSynthesis" in window)) return;
+        if (!STATE.voiceEnabled && !force) return;
+        if (!STATE.autoSpeech && !force) return;
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-TW";
+        utterance.rate = 0.92;
+        utterance.pitch = 1.05;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      /* -------------------------------------------------------
+         5. Three.js 3D 台灣居家陽台與灰色直立式洗衣機場景建構
+      -------------------------------------------------------- */
+      const container = document.getElementById("canvas-container");
+      let scene, camera, renderer;
+      let machineGroup, lidPivot, innerDrumGroup, pulsatorMesh;
+      let waterMesh, foamGroup, cleanerBoxGroup, fallingPowderGroup, sparkleGroup;
+      let panelCanvas, panelCtx, panelTexture, panelMesh;
+      let hitPowerOnMesh, hitPowerOffMesh, hitWaterBtnMesh, hitStartPauseMesh, hitDrumMesh;
+      let highlightRingMesh;
+      let raycaster = new THREE.Raycaster();
+      let pointerNDC = new THREE.Vector2();
+
+      let cameraOrbitAngle = 0.0;
+      let isDragging = false;
+      let dragDistance = 0;
+      let prevPointerX = 0;
+
+      function initThreeScene() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xdbeafe);
+        scene.fog = new THREE.Fog(0xdbeafe, 14, 28);
+
+        const width = container.clientWidth || 600;
+        const height = container.clientHeight || 500;
+        camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+        camera.position.set(0, 4.35, 2.55);
+        camera.lookAt(-0.2, 2.82, -0.65);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xfde68a, 0.9);
+        hemiLight.position.set(0, 10, 0);
+        scene.add(hemiLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.95);
+        dirLight.position.set(4, 9, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        buildBalconyEnvironment();
+        buildWashingMachine();
+        buildCleanerBoxAndParticles();
+        buildSparkleParticles();
+        drawPanasonicPanelCanvas();
+        setupSceneInteractions();
+      }
+
+      function buildBalconyEnvironment() {
+        // 磁磚地板
+        const floorGeo = new THREE.PlaneGeometry(18, 18);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
+        const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        // 地板網格線
+        const gridHelper = new THREE.GridHelper(16, 16, 0x94a3b8, 0xcbd5e1);
+        gridHelper.position.y = 0.005;
+        scene.add(gridHelper);
+
+        // 陽台背景牆面
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.85 });
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 7, 0.3), wallMat);
+        backWall.position.set(0, 3.5, -3.2);
+        backWall.receiveShadow = true;
+        scene.add(backWall);
+
+        // 右側木頭置物櫃
+        const cabinetMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(1.4, 1.58, 1.3),
+          new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.65 })
+        );
+        cabinetMesh.position.set(2.15, 0.79, -0.2);
+        cabinetMesh.castShadow = true;
+        cabinetMesh.receiveShadow = true;
+        scene.add(cabinetMesh);
+      }
+
+      function buildWashingMachine() {
+        machineGroup = new THREE.Group();
+        machineGroup.position.set(-0.2, 0, -0.1);
+        scene.add(machineGroup);
+
+        // 1. 灰色金屬機身外殼
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: 0x71717a,
+          metalness: 0.45,
+          roughness: 0.38
+        });
+        const darkTrimMat = new THREE.MeshStandardMaterial({
+          color: 0x3f3f46,
+          metalness: 0.4,
+          roughness: 0.45
+        });
+        const topDeckMat = new THREE.MeshStandardMaterial({
+          color: 0xa1a1aa,
+          metalness: 0.35,
+          roughness: 0.35
+        });
+
+        // 底座
+        const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.24, 2.34), darkTrimMat);
+        baseMesh.position.y = 0.12;
+        baseMesh.castShadow = true;
+        baseMesh.receiveShadow = true;
+        machineGroup.add(baseMesh);
+
+        // 機身四面外殼（留出上方內槽開口）
+        const wallHeight = 2.48;
+        const wallY = 0.24 + wallHeight / 2;
+        const frontWall = new THREE.Mesh(new THREE.BoxGeometry(2.3, wallHeight, 0.25), bodyMat);
+        frontWall.position.set(0, wallY, 1.025);
+        frontWall.castShadow = true;
+        frontWall.receiveShadow = true;
+        machineGroup.add(frontWall);
+
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(2.3, wallHeight, 0.25), bodyMat);
+        backWall.position.set(0, wallY, -1.025);
+        backWall.castShadow = true;
+        machineGroup.add(backWall);
+
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, wallHeight, 1.8), bodyMat);
+        leftWall.position.set(-1.025, wallY, 0);
+        leftWall.castShadow = true;
+        machineGroup.add(leftWall);
+
+        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, wallHeight, 1.8), bodyMat);
+        rightWall.position.set(1.025, wallY, 0);
+        rightWall.castShadow = true;
+        machineGroup.add(rightWall);
+
+        // 頂部銀灰色框緣（前、左、右框）
+        const topY = 2.78;
+        const topFrontFrame = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.14, 0.32), topDeckMat);
+        topFrontFrame.position.set(0, topY, 1.01);
+        machineGroup.add(topFrontFrame);
+
+        const topLeftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 1.72), topDeckMat);
+        topLeftFrame.position.set(-1.01, topY, 0.05);
+        machineGroup.add(topLeftFrame);
+
+        const topRightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 1.72), topDeckMat);
+        topRightFrame.position.set(1.01, topY, 0.05);
+        machineGroup.add(topRightFrame);
+
+        // 2. 不鏽鋼內槽與底部波輪
+        innerDrumGroup = new THREE.Group();
+        innerDrumGroup.position.set(0, 0.5, 0.15);
+        machineGroup.add(innerDrumGroup);
+
+        const drumGeo = new THREE.CylinderGeometry(0.84, 0.80, 2.15, 32, 1, true);
+        const drumMat = new THREE.MeshStandardMaterial({
+          color: 0xe4e4e7,
+          metalness: 0.78,
+          roughness: 0.22,
+          side: THREE.DoubleSide
+        });
+        const drumMesh = new THREE.Mesh(drumGeo, drumMat);
+        drumMesh.position.y = 1.08;
+        innerDrumGroup.add(drumMesh);
+
+        // 內槽孔洞紋理環帶
+        for (let r = 0; r < 4; r++) {
+          const ringGeo = new THREE.TorusGeometry(0.825, 0.012, 8, 32);
+          const ringMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+          const ring = new THREE.Mesh(ringGeo, ringMat);
+          ring.rotation.x = Math.PI / 2;
+          ring.position.y = 0.45 + r * 0.45;
+          innerDrumGroup.add(ring);
+        }
+
+        // 內槽底部與迴轉波輪
+        const drumBottom = new THREE.Mesh(
+          new THREE.CircleGeometry(0.80, 32),
+          new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.6, roughness: 0.3 })
+        );
+        drumBottom.rotation.x = -Math.PI / 2;
+        drumBottom.position.y = 0.03;
+        innerDrumGroup.add(drumBottom);
+
+        pulsatorMesh = new THREE.Group();
+        pulsatorMesh.position.y = 0.07;
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.28, 0.12, 20),
+          new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35 })
+        );
+        pulsatorMesh.add(hub);
+        for (let b = 0; b < 6; b++) {
+          const blade = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.07, 0.56),
+            new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.3 })
+          );
+          blade.rotation.y = (b / 6) * Math.PI * 2;
+          blade.position.y = 0.02;
+          pulsatorMesh.add(blade);
+        }
+        innerDrumGroup.add(pulsatorMesh);
+
+        // 內槽水量網格
+        const waterGeo = new THREE.CylinderGeometry(0.81, 0.78, 1.85, 32);
+        const waterMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.68,
+          roughness: 0.15
+        });
+        waterMesh = new THREE.Mesh(waterGeo, waterMat);
+        waterMesh.position.set(0, 0.55, 0.15);
+        waterMesh.visible = false;
+        machineGroup.add(waterMesh);
+
+        // 清潔劑泡沫群組
+        foamGroup = new THREE.Group();
+        foamGroup.position.set(0, 2.38, 0.15);
+        foamGroup.visible = false;
+        const bubbleGeo = new THREE.SphereGeometry(0.16, 12, 12);
+        const bubbleMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+        for (let f = 0; f < 28; f++) {
+          const b = new THREE.Mesh(bubbleGeo, bubbleMat);
+          const ang = (f / 28) * Math.PI * 2 * 2.3;
+          const rad = (f % 5) * 0.15;
+          b.position.set(Math.cos(ang) * rad, (f % 3) * 0.03, Math.sin(ang) * rad);
+          b.scale.setScalar(0.6 + (f % 4) * 0.22);
+          b.userData = { baseY: b.position.y, phase: f * 0.5 };
+          foamGroup.add(b);
+        }
+        machineGroup.add(foamGroup);
+
+        // 3. Panasonic NA-158VT 風格傾斜控制面板（後方）
+        const panelHousing = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.36, 0.62), topDeckMat);
+        panelHousing.position.set(0, 2.92, -0.84);
+        panelHousing.rotation.x = 0.24;
+        panelHousing.castShadow = true;
+        machineGroup.add(panelHousing);
+
+        panelCanvas = document.createElement("canvas");
+        panelCanvas.width = 1024;
+        panelCanvas.height = 256;
+        panelCtx = panelCanvas.getContext("2d");
+        panelTexture = new THREE.CanvasTexture(panelCanvas);
+
+        const panelFaceGeo = new THREE.PlaneGeometry(2.26, 0.56);
+        const panelFaceMat = new THREE.MeshBasicMaterial({ map: panelTexture });
+        panelMesh = new THREE.Mesh(panelFaceGeo, panelFaceMat);
+        // 沿著 panelHousing 法線方向 (0, cos(0.24), sin(0.24)) 抬高 0.186，確保面板貼合在殼體最上表面不被遮擋
+        panelMesh.position.set(0, 3.105, -0.795);
+        panelMesh.rotation.x = -Math.PI / 2 + 0.24;
+        machineGroup.add(panelMesh);
+
+        // 3D 面板可點擊隱形感應熱區 (對齊抬高後的面板表面)
+        const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+        hitPowerOnMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.22), hitMat);
+        hitPowerOnMesh.position.set(0.94, 3.15, -0.92);
+        hitPowerOnMesh.name = "power_on";
+        machineGroup.add(hitPowerOnMesh);
+
+        hitPowerOffMesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.14, 0.22), hitMat);
+        hitPowerOffMesh.position.set(0.94, 3.09, -0.68);
+        hitPowerOffMesh.name = "power_off";
+        machineGroup.add(hitPowerOffMesh);
+
+        hitWaterBtnMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.24), hitMat);
+        hitWaterBtnMesh.position.set(-0.80, 3.08, -0.66);
+        hitWaterBtnMesh.name = "water_btn";
+        machineGroup.add(hitWaterBtnMesh);
+
+        hitStartPauseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.26), hitMat);
+        hitStartPauseMesh.position.set(0.67, 3.09, -0.68);
+        hitStartPauseMesh.name = "start_pause";
+        machineGroup.add(hitStartPauseMesh);
+
+        hitDrumMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.84, 0.84, 0.3, 24), hitMat);
+        hitDrumMesh.position.set(0, 2.65, 0.15);
+        hitDrumMesh.name = "drum_area";
+        machineGroup.add(hitDrumMesh);
+
+        // 學習模式 3D 面板綠色發光引導環 (緊貼面板上方 0.012 單位)
+        highlightRingMesh = new THREE.Mesh(
+          new THREE.RingGeometry(0.13, 0.20, 32),
+          new THREE.MeshBasicMaterial({ color: 0x16a34a, side: THREE.DoubleSide })
+        );
+        highlightRingMesh.rotation.x = -Math.PI / 2 + 0.24;
+        highlightRingMesh.position.set(0.94, 3.155, -0.92);
+        machineGroup.add(highlightRingMesh);
+
+        // 4. 半透明灰色強化玻璃上蓋（可掀開）
+        lidPivot = new THREE.Group();
+        lidPivot.position.set(0, 2.86, -0.52);
+        machineGroup.add(lidPivot);
+
+        const lidFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(1.78, 0.08, 1.48),
+          new THREE.MeshStandardMaterial({ color: 0x52525b, metalness: 0.4, roughness: 0.35 })
+        );
+        lidFrame.position.set(0, 0, 0.74);
+        lidPivot.add(lidFrame);
+
+        const glassPane = new THREE.Mesh(
+          new THREE.BoxGeometry(1.52, 0.04, 1.22),
+          new THREE.MeshStandardMaterial({
+            color: 0x94a3b8,
+            transparent: true,
+            opacity: 0.45,
+            roughness: 0.15
+          })
+        );
+        glassPane.position.set(0, 0.01, 0.74);
+        lidPivot.add(glassPane);
+      }
+
+      function drawPanasonicPanelCanvas() {
+        if (!panelCtx) return;
+        const ctx = panelCtx;
+        ctx.clearRect(0, 0, 1024, 256);
+
+        // 面板底色
+        ctx.fillStyle = "#f4f4f5";
+        ctx.fillRect(0, 0, 1024, 256);
+        ctx.strokeStyle = "#a1a1aa";
+        ctx.lineWidth = 6;
+        ctx.strokeRect(3, 3, 1018, 250);
+
+        // 左側：10段式水位顯示燈
+        ctx.fillStyle = "#334155";
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("10段式水位", 145, 42);
+
+        const levels = [
+          { label: "58L", x: 100, y: 74, active: STATE.powerOn && STATE.waterLevelIndex === 2 },
+          { label: "98L", x: 185, y: 74, active: STATE.powerOn && STATE.waterLevelIndex === 3 },
+          { label: "46L", x: 100, y: 112, active: false },
+          { label: "86L", x: 185, y: 112, active: false },
+          { label: "38L", x: 100, y: 150, active: STATE.powerOn && STATE.waterLevelIndex === 1 },
+          { label: "72L", x: 185, y: 150, active: false }
+        ];
+        levels.forEach((lv) => {
+          ctx.fillStyle = lv.active ? "#f43f5e" : "#cbd5e1";
+          ctx.beginPath();
+          ctx.roundRect(lv.x - 36, lv.y - 22, 72, 30, 6);
+          ctx.fill();
+          ctx.fillStyle = lv.active ? "#ffffff" : "#334155";
+          ctx.font = "bold 18px sans-serif";
+          ctx.fillText(lv.label, lv.x, lv.y - 1);
+        });
+
+        // 「水量」按鈕
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(96, 178, 98, 52, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
+        ctx.fillText("水量", 145, 212);
+
+        // 洗衣 / 洗清 / 脫水 狀態欄
+        const cols = [
+          { title: "洗衣", x: 285, active: STATE.powerOn && STATE.isSpinning },
+          { title: "洗清", x: 355, active: STATE.powerOn && STATE.currentStep >= 7 },
+          { title: "脫水", x: 425, active: false }
+        ];
+        cols.forEach((c) => {
+          ctx.fillStyle = c.active ? "#f43f5e" : "#cbd5e1";
+          ctx.beginPath();
+          ctx.roundRect(c.x - 24, 52, 48, 28, 6);
+          ctx.fill();
+          ctx.fillStyle = c.active ? "#ffffff" : "#475569";
+          ctx.font = "bold 16px sans-serif";
+          ctx.fillText(c.title === "洗衣" ? "15" : c.title === "洗清" ? "3" : "9", c.x, 72);
+
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(c.x - 28, 178, 56, 52, 8);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#1e293b";
+          ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+          ctx.fillText(c.title, c.x, 211);
+        });
+
+        // 中央黑色數位顯示窗
+        ctx.fillStyle = "#18181b";
+        ctx.beginPath();
+        ctx.roundRect(472, 26, 170, 208, 16);
+        ctx.fill();
+
+        ctx.fillStyle = "#a1a1aa";
+        ctx.font = "bold 16px 'Noto Sans TC', sans-serif";
+        ctx.fillText("剩餘", 505, 118);
+        ctx.fillText("分", 614, 118);
+
+        // 數位顯示文字
+        ctx.fillStyle = STATE.powerOn ? "#fb7185" : "#3f3f46";
+        ctx.font = "bold 54px monospace";
+        ctx.fillText(STATE.powerOn ? (STATE.digitalText || "--") : "", 558, 122);
+
+        // 行程：槽洗淨指示燈
+        const tubCleanActive = STATE.powerOn && STATE.currentStep >= 2;
+        ctx.fillStyle = tubCleanActive ? "#f43f5e" : "#cbd5e1";
+        ctx.beginPath();
+        ctx.roundRect(666, 126, 86, 32, 6);
+        ctx.fill();
+        ctx.fillStyle = tubCleanActive ? "#ffffff" : "#334155";
+        ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+        ctx.fillText("槽洗淨", 709, 148);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(666, 178, 86, 52, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+        ctx.fillText("行程", 709, 212);
+
+        // 黃色「啟動 / 暫停」大按鈕
+        ctx.fillStyle = "#fde047";
+        ctx.strokeStyle = "#ca8a04";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(776, 142, 92, 88, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+        ctx.fillText("啟動", 822, 178);
+        ctx.fillRect(792, 188, 60, 3);
+        ctx.fillText("暫停", 822, 216);
+
+        // 右側「電源：開 / 關」按鈕
+        ctx.fillStyle = STATE.powerOn ? "#dcfce7" : "#ffffff";
+        ctx.strokeStyle = STATE.powerOn ? "#16a34a" : "#64748b";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(894, 34, 96, 62, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#14532d";
+        ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+        ctx.fillText("開", 942, 75);
+
+        ctx.fillStyle = "#334155";
+        ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
+        ctx.fillText("電源", 942, 132);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(894, 158, 96, 62, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#b91c1c";
+        ctx.font = "bold 28px 'Noto Sans TC', sans-serif";
+        ctx.fillText("關", 942, 199);
+
+        panelTexture.needsUpdate = true;
+      }
+
+      function buildCleanerBoxAndParticles() {
+        // 洗衣槽清潔劑包裝盒
+        cleanerBoxGroup = new THREE.Group();
+        cleanerBoxGroup.position.set(1.85, 1.92, -0.1);
+        const boxMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(0.46, 0.68, 0.24),
+          new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 })
+        );
+        boxMesh.castShadow = true;
+        cleanerBoxGroup.add(boxMesh);
+
+        const labelBand = new THREE.Mesh(
+          new THREE.BoxGeometry(0.48, 0.26, 0.26),
+          new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.4 })
+        );
+        cleanerBoxGroup.add(labelBand);
+        scene.add(cleanerBoxGroup);
+
+        // 傾倒清潔劑粉末粒子群
+        fallingPowderGroup = new THREE.Group();
+        fallingPowderGroup.visible = false;
+        const grainGeo = new THREE.SphereGeometry(0.035, 8, 8);
+        const grainMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        for (let i = 0; i < 24; i++) {
+          const g = new THREE.Mesh(grainGeo, grainMat);
+          g.position.set((Math.random() - 0.5) * 0.35, Math.random() * 0.9, (Math.random() - 0.5) * 0.35);
+          fallingPowderGroup.add(g);
+        }
+        fallingPowderGroup.position.set(-0.2, 2.7, 0.12);
+        scene.add(fallingPowderGroup);
+      }
+
+      function buildSparkleParticles() {
+        sparkleGroup = new THREE.Group();
+        sparkleGroup.position.set(-0.2, 2.72, 0.12);
+        sparkleGroup.visible = false;
+        const starGeo = new THREE.OctahedronGeometry(0.14, 0);
+        const starMat = new THREE.MeshStandardMaterial({
+          color: 0xfef08a,
+          emissive: 0xfacc15,
+          emissiveIntensity: 0.85
+        });
+        for (let i = 0; i < 16; i++) {
+          const s = new THREE.Mesh(starGeo, starMat);
+          const angle = (i / 16) * Math.PI * 2;
+          const radius = 0.25 + (i % 3) * 0.26;
+          s.position.set(Math.cos(angle) * radius, (i % 4) * 0.15, Math.sin(angle) * radius);
+          s.userData = { baseY: s.position.y, phase: i * 0.7 };
+          sparkleGroup.add(s);
+        }
+        scene.add(sparkleGroup);
+      }
+
+      function setupSceneInteractions() {
+        const dom = renderer.domElement;
+
+        dom.addEventListener("pointerdown", (e) => {
+          isDragging = true;
+          dragDistance = 0;
+          prevPointerX = e.clientX;
+        });
+
+        window.addEventListener("pointermove", (e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - prevPointerX;
+          dragDistance += Math.abs(dx);
+          prevPointerX = e.clientX;
+          cameraOrbitAngle += dx * 0.006;
+          cameraOrbitAngle = Math.max(-0.85, Math.min(0.85, cameraOrbitAngle));
+        });
+
+        window.addEventListener("pointerup", (e) => {
+          if (!isDragging) return;
+          isDragging = false;
+          if (dragDistance < 8) {
+            handle3DCanvasTap(e);
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          if (!renderer || !camera) return;
+          const w = container.clientWidth || 600;
+          const h = container.clientHeight || 500;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h);
+        });
+      }
+
+      function handle3DCanvasTap(e) {
+        const now = Date.now();
+        if (now - STATE.lastClickTime < STATE.debounceMs) return;
+        if (STATE.isAnimating) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(pointerNDC, camera);
+        const targets = [hitPowerOnMesh, hitWaterBtnMesh, hitStartPauseMesh, hitDrumMesh, cleanerBoxGroup];
+        const hits = raycaster.intersectObjects(targets, true);
+        if (!hits.length) return;
+
+        STATE.lastClickTime = now;
+        let hitObj = hits[0].object;
+        while (hitObj && !hitObj.name && hitObj.parent) {
+          if (hitObj === cleanerBoxGroup) {
+            hitObj = { name: "cleaner_box" };
+            break;
+          }
+          hitObj = hitObj.parent;
+        }
+        const hitName = hitObj ? hitObj.name : "";
+
+        if (STATE.currentStep === 1 && hitName === "power_on") {
+          triggerStepAction(1);
+        } else if (STATE.currentStep === 2 && hitName === "water_btn") {
+          triggerStepAction(2);
+        } else if ((STATE.currentStep === 3 || STATE.currentStep === 4 || STATE.currentStep === 7) && hitName === "start_pause") {
+          triggerStepAction(STATE.currentStep);
+        } else if (STATE.currentStep === 5 && (hitName === "drum_area" || hitName === "cleaner_box")) {
+          triggerStepAction(5);
+        } else {
+          playGentleNudgeSound();
+          const stepObj = STEPS_DATA[STATE.currentStep - 1];
+          if (stepObj) {
+            showGentleFeedback(stepObj.instruction, "bg-amber-100 border-amber-300 text-amber-900");
+          }
+        }
+      }
+
+      function updateCameraButtonUI() {
+        const labelEl = document.getElementById("camera-label");
+        if (!labelEl) return;
+        if (STATE.cameraView === "panel") {
+          labelEl.textContent = "視角：看面板";
+        } else if (STATE.cameraView === "drum") {
+          labelEl.textContent = "視角：看洗衣槽";
+        } else {
+          labelEl.textContent = "視角：全景";
+        }
+      }
+
+      let lastFrameTime = performance.now();
+      const targetCamPos = new THREE.Vector3();
+      const targetLookAt = new THREE.Vector3();
+
+      function animateThreeScene() {
+        requestAnimationFrame(animateThreeScene);
+        const now = performance.now();
+        const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+        const elapsed = now / 1000;
+        lastFrameTime = now;
+
+        // 1A. 根據視角模式平滑移動攝影機
+        if (STATE.cameraView === "panel") {
+          targetCamPos.set(-0.2 + Math.sin(cameraOrbitAngle) * 1.4, 4.35, 1.25);
+          targetLookAt.set(-0.2, 2.95, -0.78);
+        } else if (STATE.cameraView === "drum") {
+          targetCamPos.set(-0.2 + Math.sin(cameraOrbitAngle) * 1.6, 4.85, 1.55);
+          targetLookAt.set(-0.2, 2.25, 0.05);
+        } else {
+          targetCamPos.set(-0.2 + Math.sin(cameraOrbitAngle) * 3.8, 4.4, 4.4);
+          targetLookAt.set(-0.2, 1.9, 0.0);
+        }
+        camera.position.lerp(targetCamPos, 0.08);
+        camera.lookAt(targetLookAt);
+
+        // 1B. 更新 3D 面板綠色發光引導環位置與脈衝動畫 (緊貼抬高後的面板表面)
+        if (highlightRingMesh) {
+          const showRing = STATE.mode === "learning" && [1, 2, 3, 4, 7].includes(STATE.currentStep) && !STATE.isAnimating;
+          highlightRingMesh.visible = showRing;
+          if (showRing) {
+            if (STATE.currentStep === 1) {
+              highlightRingMesh.position.set(0.94, 3.155, -0.92);
+            } else if (STATE.currentStep === 2) {
+              highlightRingMesh.position.set(-0.80, 3.088, -0.66);
+            } else {
+              highlightRingMesh.position.set(0.67, 3.092, -0.68);
+            }
+            const ringScale = 1.0 + Math.sin(elapsed * 6) * 0.18;
+            highlightRingMesh.scale.setScalar(ringScale);
+          }
+        }
+
+        // 2. 上蓋平滑開合動畫
+        STATE.lidAngle += (STATE.targetLidAngle - STATE.lidAngle) * 0.12;
+        if (lidPivot) {
+          lidPivot.rotation.x = -STATE.lidAngle;
+        }
+
+        // 3. 內槽水位高度與顏色變化
+        STATE.waterFillRatio += (STATE.targetWaterFill - STATE.waterFillRatio) * 0.08;
+        if (waterMesh) {
+          if (STATE.waterFillRatio > 0.01) {
+            waterMesh.visible = true;
+            waterMesh.scale.y = STATE.waterFillRatio;
+            waterMesh.position.y = 0.55 + (STATE.waterFillRatio * 1.85) / 2;
+            waterMesh.material.color.setHex(STATE.waterDirty ? 0x93c5fd : 0x38bdf8);
+          } else {
+            waterMesh.visible = false;
+          }
+        }
+
+        // 4. 洗衣內槽與波輪旋轉
+        const targetSpin = STATE.isSpinning ? 6.5 : 0;
+        STATE.spinSpeed += (targetSpin - STATE.spinSpeed) * 0.08;
+        if (innerDrumGroup && pulsatorMesh && STATE.spinSpeed > 0.02) {
+          innerDrumGroup.rotation.y += STATE.spinSpeed * dt * 0.45;
+          pulsatorMesh.rotation.y -= STATE.spinSpeed * dt * 1.5;
+        }
+
+        // 5. 清潔泡沫浮動動畫
+        STATE.foamAmount += (STATE.targetFoamAmount - STATE.foamAmount) * 0.08;
+        if (foamGroup) {
+          if (STATE.foamAmount > 0.02) {
+            foamGroup.visible = true;
+            foamGroup.scale.setScalar(STATE.foamAmount);
+            foamGroup.children.forEach((b) => {
+              b.position.y = b.userData.baseY + Math.sin(elapsed * 3.5 + b.userData.phase) * 0.03;
+            });
+          } else {
+            foamGroup.visible = false;
+          }
+        }
+
+        // 6. 完成步驟 8 亮晶晶星星旋轉閃爍
+        if (sparkleGroup) {
+          sparkleGroup.visible = STATE.isSparkling;
+          if (STATE.isSparkling) {
+            sparkleGroup.rotation.y += dt * 1.2;
+            sparkleGroup.children.forEach((s) => {
+              s.position.y = s.userData.baseY + Math.sin(elapsed * 4 + s.userData.phase) * 0.08;
+              const sc = 0.85 + Math.sin(elapsed * 5 + s.userData.phase) * 0.3;
+              s.scale.setScalar(sc);
+            });
+          }
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      /* -------------------------------------------------------
+         7. 右側工作分析 UI 渲染與互動控制
+      -------------------------------------------------------- */
+      function renderStepCapsules() {
+        const containerEl = document.getElementById("step-capsules");
+        containerEl.innerHTML = "";
+        for (let i = 1; i <= 8; i++) {
+          const pill = document.createElement("div");
+          let bgClass = "bg-slate-200 text-slate-500";
+          if (i < STATE.currentStep) {
+            bgClass = "bg-emerald-500 text-white";
+          } else if (i === STATE.currentStep) {
+            bgClass = "bg-sky-600 text-white ring-2 ring-sky-300";
+          }
+          pill.className = `h-7 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm transition ${bgClass}`;
+          pill.textContent = i < STATE.currentStep ? "✓" : `${i}`;
+          containerEl.appendChild(pill);
+        }
+        document.getElementById("progress-fraction").textContent = `第 ${STATE.currentStep} / 8 步`;
+      }
+
+      function renderTaskPanel() {
+        renderStepCapsules();
+        const stepObj = STEPS_DATA[STATE.currentStep - 1];
+        document.getElementById("step-badge").textContent = `步驟 ${stepObj.step}`;
+        document.getElementById("step-title").textContent = stepObj.title;
+
+        const instBox = document.getElementById("step-instruction-box");
+        instBox.textContent = stepObj.instruction;
+        instBox.classList.toggle("hidden", !STATE.showHint);
+
+        hideGentleFeedback();
+        drawPanasonicPanelCanvas();
+
+        const btnArea = document.getElementById("action-buttons-area");
+        btnArea.innerHTML = "";
+
+        if (STATE.currentStep === 8) {
+          const celebCard = document.createElement("div");
+          celebCard.className = "bg-gradient-to-br from-amber-100 to-emerald-100 border-4 border-amber-400 rounded-3xl p-5 text-center space-y-3";
+          celebCard.innerHTML = `
+            <div class="text-5xl star-float">✨🧺✨</div>
+            <h3 class="text-2xl font-black text-emerald-900">任務大成功！</h3>
+            <p class="text-base sm:text-lg font-bold text-slate-700">你已經學會清潔直立式洗衣機槽的 8 個步驟囉！</p>
+            <button id="btn-play-again" type="button"
+              class="big-touch-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl rounded-2xl py-4 mt-2">
+              🔄 再練習一次
+            </button>
+          `;
+          btnArea.appendChild(celebCard);
+          document.getElementById("btn-play-again").addEventListener("click", () => {
+            playClickSound(600, 0.14);
+            resetSimulation();
+          });
+          return;
+        }
+
+        const colorMap = {
+          emerald: "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800",
+          sky: "bg-sky-600 hover:bg-sky-700 text-white border-sky-800",
+          amber: "bg-amber-400 hover:bg-amber-500 text-slate-900 border-amber-600",
+          indigo: "bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-800",
+          slate: "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300"
+        };
+
+        stepObj.buttons.forEach((btnDef) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.id = btnDef.id;
+          const baseColor = colorMap[btnDef.style] || colorMap.sky;
+          const learningHighlight = STATE.mode === "learning" && btnDef.isTarget ? "learning-target-pulse" : "";
+          btn.className = `big-touch-btn w-full rounded-2xl px-3.5 py-3.5 font-black text-lg sm:text-xl border-2 flex items-center justify-center gap-1.5 leading-snug ${baseColor} ${learningHighlight}`;
+          btn.textContent = btnDef.label;
+
+          btn.addEventListener("click", () => {
+            const now = Date.now();
+            if (now - STATE.lastClickTime < STATE.debounceMs) return;
+            STATE.lastClickTime = now;
+            if (STATE.isAnimating) return;
+
+            if (btnDef.isTarget) {
+              triggerStepAction(STATE.currentStep);
+            } else {
+              playGentleNudgeSound();
+              btn.classList.remove("gentle-nudge");
+              void btn.offsetWidth;
+              btn.classList.add("gentle-nudge");
+              const hintMsg = btnDef.gentleHint || "再試試看另一個按鈕喔！";
+              showGentleFeedback(hintMsg, "bg-amber-100 border-amber-300 text-amber-900");
+              speakText(hintMsg, true);
+            }
+          });
+
+          btnArea.appendChild(btn);
+        });
+      }
+
+      function showGentleFeedback(text, colorClasses) {
+        const banner = document.getElementById("feedback-banner");
+        banner.className = `mb-4 rounded-2xl p-3 border-2 font-bold text-base sm:text-lg flex items-center gap-2 ${colorClasses}`;
+        document.getElementById("feedback-text").textContent = text;
+        banner.classList.remove("hidden");
+      }
+
+      function hideGentleFeedback() {
+        document.getElementById("feedback-banner").classList.add("hidden");
+      }
+
+      function updateMachineVisualIndicators(statusText, dotClass) {
+        document.getElementById("status-text").textContent = statusText;
+        document.getElementById("status-dot").className = `w-3 h-3 rounded-full inline-block ${dotClass}`;
+      }
+
+      function advanceToStep(nextStep) {
+        STATE.currentStep = nextStep;
+        renderTaskPanel();
+        const stepObj = STEPS_DATA[nextStep - 1];
+        if (stepObj) {
+          speakText(stepObj.speech, false);
+        }
+      }
+
+      /* -------------------------------------------------------
+         8. 執行每一步的 3D 動作與狀態轉換
+      -------------------------------------------------------- */
+      function triggerStepAction(stepNumber) {
+        if (stepNumber === 1) {
+          // 步驟 1：開啟電源
+          playPowerOnSound();
+          STATE.powerOn = true;
+          STATE.digitalText = "--";
+          drawPanasonicPanelCanvas();
+          updateMachineVisualIndicators("電源：已開啟 (待機中)", "bg-emerald-400");
+          advanceToStep(2);
+        } else if (stepNumber === 2) {
+          // 步驟 2：選擇高水位 98L
+          playClickSound(640, 0.15);
+          STATE.waterLevelIndex = 3;
+          STATE.waterLevelHigh = true;
+          STATE.digitalText = "98";
+          drawPanasonicPanelCanvas();
+          updateMachineVisualIndicators("水位：98L 高水位", "bg-sky-400");
+          advanceToStep(3);
+        } else if (stepNumber === 3) {
+          // 步驟 3：按下啟動 -> 開始注水並運轉
+          playClickSound(700, 0.16);
+          STATE.targetWaterFill = 0.88;
+          STATE.isSpinning = true;
+          STATE.digitalText = "60";
+          drawPanasonicPanelCanvas();
+          updateMachineVisualIndicators("運轉中：注水攪拌中...", "bg-amber-400 animate-pulse");
+          advanceToStep(4);
+        } else if (stepNumber === 4) {
+          // 步驟 4：按下暫停 -> 停止轉動並自動掀開上蓋、切換看洗衣槽視角
+          playClickSound(520, 0.16);
+          STATE.isSpinning = false;
+          STATE.targetLidAngle = Math.PI * 0.46;
+          STATE.cameraView = "drum";
+          updateCameraButtonUI();
+          drawPanasonicPanelCanvas();
+          updateMachineVisualIndicators("已暫停：上蓋開啟 (請投入清潔劑)", "bg-amber-300");
+          advanceToStep(5);
+        } else if (stepNumber === 5) {
+          // 步驟 5：投入洗衣槽清潔劑 -> 播放傾倒粉末與起泡動畫
+          STATE.isAnimating = true;
+          playClickSound(620, 0.15);
+          updateMachineVisualIndicators("投入清潔劑：正在產生細緻泡沫...", "bg-indigo-400");
+          showGentleFeedback("正在倒入洗衣槽清潔劑，產生滿滿泡沫中...", "bg-sky-100 border-sky-300 text-sky-900");
+
+          if (cleanerBoxGroup) {
+            cleanerBoxGroup.position.set(0.45, 3.25, 0.12);
+            cleanerBoxGroup.rotation.z = Math.PI * 0.65;
+          }
+          if (fallingPowderGroup) {
+            fallingPowderGroup.visible = true;
+          }
+
+          setTimeout(() => {
+            STATE.targetFoamAmount = 1.0;
+            STATE.waterDirty = true;
+          }, 400);
+
+          setTimeout(() => {
+            if (fallingPowderGroup) fallingPowderGroup.visible = false;
+            if (cleanerBoxGroup) {
+              cleanerBoxGroup.position.set(1.85, 1.92, -0.1);
+              cleanerBoxGroup.rotation.z = 0;
+            }
+            STATE.isAnimating = false;
+            advanceToStep(6);
+          }, 1500);
+        } else if (stepNumber === 6) {
+          // 步驟 6：浸泡 1 小時 -> 跳出時鐘轉動 1 小時動畫
+          STATE.isAnimating = true;
+          STATE.cameraView = "drum";
+          updateCameraButtonUI();
+          const overlay = document.getElementById("soak-clock-overlay");
+          const ring = document.getElementById("clock-progress-ring");
+          const minHand = document.getElementById("clock-minute-hand");
+          const hourHand = document.getElementById("clock-hour-hand");
+          const timeText = document.getElementById("clock-time-display");
+          const subText = document.getElementById("clock-sub-display");
+
+          overlay.classList.remove("hidden");
+          updateMachineVisualIndicators("浸泡中：靜置溶解污垢 (1 小時)", "bg-sky-400 animate-pulse");
+
+          const totalTicks = 12;
+          let tick = 0;
+          const circumference = 452.39;
+
+          const timer = setInterval(() => {
+            tick += 1;
+            const progress = tick / totalTicks;
+            const mins = Math.round(progress * 60);
+            playTickSound(tick === totalTicks);
+
+            if (ring) {
+              ring.style.strokeDashoffset = String(circumference * (1 - progress));
+            }
+            if (minHand) {
+              minHand.setAttribute("transform", `rotate(${progress * 360} 100 100)`);
+            }
+            if (hourHand) {
+              hourHand.setAttribute("transform", `rotate(${progress * 30} 100 100)`);
+            }
+            if (timeText) {
+              timeText.textContent = tick === totalTicks ? "60 分鐘 (1 小時完成！)" : `${mins} 分鐘`;
+            }
+            if (subText && tick === totalTicks) {
+              subText.textContent = "污垢已經完全溶解囉！";
+            }
+
+            if (tick >= totalTicks) {
+              clearInterval(timer);
+              setTimeout(() => {
+                overlay.classList.add("hidden");
+                STATE.targetLidAngle = 0;
+                STATE.cameraView = "panel";
+                updateCameraButtonUI();
+                STATE.isAnimating = false;
+                advanceToStep(7);
+              }, 900);
+            }
+          }, 260);
+        } else if (stepNumber === 7) {
+          // 步驟 7：再次按下啟動 -> 洗淨排水 -> 步驟 8 掀蓋亮晶晶
+          STATE.isAnimating = true;
+          playClickSound(720, 0.16);
+          STATE.targetLidAngle = 0;
+          STATE.isSpinning = true;
+          STATE.digitalText = "05";
+          drawPanasonicPanelCanvas();
+          updateMachineVisualIndicators("最終洗淨中：高速洗淨與排水...", "bg-emerald-400 animate-pulse");
+          showGentleFeedback("洗衣機正在高速洗淨並把髒水排掉，請稍候...", "bg-sky-100 border-sky-300 text-sky-900");
+
+          setTimeout(() => {
+            STATE.cameraView = "drum";
+            updateCameraButtonUI();
+            STATE.targetWaterFill = 0;
+            STATE.targetFoamAmount = 0;
+            STATE.waterDirty = false;
+          }, 900);
+
+          setTimeout(() => {
+            STATE.isSpinning = false;
+            STATE.digitalText = "00";
+            STATE.targetLidAngle = Math.PI * 0.46;
+            STATE.isSparkling = true;
+            drawPanasonicPanelCanvas();
+            updateMachineVisualIndicators("清潔完成：洗衣機亮晶晶！✨", "bg-amber-400");
+            playCelebrationSound();
+            STATE.isAnimating = false;
+            advanceToStep(8);
+          }, 2200);
+        }
+      }
+
+      function resetSimulation() {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+        STATE.currentStep = 1;
+        STATE.isAnimating = false;
+        STATE.cameraView = "panel";
+        STATE.powerOn = false;
+        STATE.waterLevelIndex = 0;
+        STATE.waterLevelHigh = false;
+        STATE.digitalText = "";
+        STATE.targetLidAngle = 0;
+        STATE.targetWaterFill = 0;
+        STATE.waterDirty = false;
+        STATE.isSpinning = false;
+        STATE.targetFoamAmount = 0;
+        STATE.isSparkling = false;
+
+        document.getElementById("soak-clock-overlay").classList.add("hidden");
+        updateCameraButtonUI();
+        updateMachineVisualIndicators("電源：關閉中", "bg-slate-400");
+        drawPanasonicPanelCanvas();
+        renderTaskPanel();
+        speakText(STEPS_DATA[0].speech, false);
+      }
+
+      // 頂部視角循環切換 (看面板 -> 看洗衣槽 -> 全景)
+      document.getElementById("btn-toggle-camera").addEventListener("click", () => {
+        playClickSound(540, 0.1);
+        const order = ["panel", "drum", "overview"];
+        const nextIdx = (order.indexOf(STATE.cameraView) + 1) % order.length;
+        STATE.cameraView = order[nextIdx];
+        updateCameraButtonUI();
+      });
+
+      // 重聽目前步驟語音
+      document.getElementById("btn-replay-speech").addEventListener("click", () => {
+        playClickSound(640, 0.12);
+        const stepObj = STEPS_DATA[STATE.currentStep - 1];
+        if (stepObj) {
+          speakText(stepObj.speech, true);
+        }
+      });
+
+      // 語音靜音切換
+      document.getElementById("btn-toggle-voice").addEventListener("click", () => {
+        STATE.voiceEnabled = !STATE.voiceEnabled;
+        document.getElementById("voice-icon").textContent = STATE.voiceEnabled ? "🔊" : "🔇";
+        document.getElementById("voice-label").textContent = STATE.voiceEnabled ? "語音開啟" : "語音靜音";
+        if (!STATE.voiceEnabled && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        } else {
+          const stepObj = STEPS_DATA[STATE.currentStep - 1];
+          if (stepObj) speakText(stepObj.speech, true);
+        }
+      });
+
+      // 學習模式 / 練習模式切換
+      document.getElementById("mode-learning").addEventListener("click", () => {
+        STATE.mode = "learning";
+        document.getElementById("mode-learning").className = "px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 text-white shadow transition";
+        document.getElementById("mode-practice").className = "px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black text-slate-600 hover:text-slate-900 transition";
+        document.getElementById("mode-description").textContent = "🌱 學習模式：綠色發光框會提示正確按鈕";
+        renderTaskPanel();
+      });
+
+      document.getElementById("mode-practice").addEventListener("click", () => {
+        STATE.mode = "practice";
+        document.getElementById("mode-practice").className = "px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-sky-600 text-white shadow transition";
+        document.getElementById("mode-learning").className = "px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-black text-slate-600 hover:text-slate-900 transition";
+        document.getElementById("mode-description").textContent = "🎯 練習模式：隱藏綠色提示框，自主判斷操作";
+        renderTaskPanel();
+      });
+
+      // 老師設定折疊面板
+      document.getElementById("btn-toggle-settings").addEventListener("click", () => {
+        const panel = document.getElementById("teacher-settings-panel");
+        const isHidden = panel.classList.toggle("hidden");
+        document.getElementById("settings-arrow").textContent = isHidden ? "▼" : "▲";
+      });
+
+      document.getElementById("chk-auto-speech").addEventListener("change", (e) => {
+        STATE.autoSpeech = e.target.checked;
+      });
+
+      document.getElementById("chk-step-hint").addEventListener("change", (e) => {
+        STATE.showHint = e.target.checked;
+        renderTaskPanel();
+      });
+
+      document.getElementById("select-debounce").addEventListener("change", (e) => {
+        STATE.debounceMs = Number(e.target.value) || 400;
+      });
+
+      // 重新開始確認對話框
+      document.getElementById("btn-restart-top").addEventListener("click", () => {
+        playClickSound(500, 0.1);
+        document.getElementById("restart-confirm-modal").classList.remove("hidden");
+      });
+
+      document.getElementById("btn-cancel-restart").addEventListener("click", () => {
+        playClickSound(460, 0.1);
+        document.getElementById("restart-confirm-modal").classList.add("hidden");
+      });
+
+      document.getElementById("btn-confirm-restart").addEventListener("click", () => {
+        playClickSound(600, 0.14);
+        document.getElementById("restart-confirm-modal").classList.add("hidden");
+        resetSimulation();
+      });
+
+      // 啟動 3D 場景與主動畫迴圈
+      window.addEventListener("load", () => {
+        initThreeScene();
+        updateCameraButtonUI();
+        renderTaskPanel();
+        animateThreeScene();
+      });
+    })();
+  </script>
+</body>
+</html>
